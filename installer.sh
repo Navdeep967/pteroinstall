@@ -16,7 +16,7 @@ apt update -y && apt upgrade -y
 
 # Install dependencies
 echo -e "${YELLOW}Installing dependencies...${RESET}"
-apt install -y docker.io docker-compose nano curl git
+apt install -y docker.io docker-compose nano curl git openssl
 
 # Create directories
 echo -e "${YELLOW}Creating directories...${RESET}"
@@ -79,6 +79,7 @@ services:
       - "./data/nginx:/etc/nginx/http.d"
       - "./data/certs:/etc/letsencrypt"
       - "./data/logs:/app/storage/logs"
+      - "/etc/certs:/etc/certs"
     environment:
       <<: [*panel-environment, *mail-environment]
       DB_PASSWORD: *db-password
@@ -102,6 +103,16 @@ EOF
 echo -e "${YELLOW}Creating data folders...${RESET}"
 mkdir -p ./data/{database,var,nginx,certs,logs}
 
+# Generate self-signed SSL cert
+echo -e "${YELLOW}Generating self-signed SSL certificate...${RESET}"
+mkdir -p /etc/certs && cd /etc/certs && \
+openssl req -new -newkey rsa:4096 -days 3650 -nodes -x509 \
+-subj "/C=NA/ST=NA/L=NA/O=NA/CN=Generic SSL Certificate" \
+-keyout privkey.pem -out fullchain.pem
+
+# Back to panel dir
+cd ~/pterodactyl/panel
+
 # Start containers
 echo -e "${YELLOW}Starting Docker containers...${RESET}"
 docker-compose up -d
@@ -112,3 +123,4 @@ docker-compose run --rm panel php artisan p:user:make
 
 echo -e "${GREEN}=== Installation Complete! ===${RESET}"
 echo -e "Panel should be available at: ${YELLOW}http://YOUR_SERVER_IP:8030${RESET}"
+echo -e "SSL certificate stored at: ${YELLOW}/etc/certs/privkey.pem & fullchain.pem${RESET}"
